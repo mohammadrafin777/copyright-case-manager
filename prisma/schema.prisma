@@ -1,0 +1,133 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ------------------- Models -------------------
+
+model User {
+  id            String         @id @default(cuid())
+  name          String
+  email         String         @unique
+  password      String
+  phone         String?
+  role          Role           @default(ASSOCIATE)
+  isActive      Boolean        @default(true)
+  cases         Case[]         @relation("AssignedLawyer")
+  clients       Client[]       @relation("ClientOwner")
+  hearings      Hearing[]      @relation("HearingLawyer")
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@map("users")
+}
+
+model Client {
+  id            String         @id @default(cuid())
+  name          String
+  phone         String
+  email         String?
+  address       String?
+  caseType      CaseType
+  cases         Case[]
+  createdBy     User?          @relation("ClientOwner", fields: [createdById], references: [id])
+  createdById   String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@map("clients")
+}
+
+model Case {
+  id            String         @id @default(cuid())
+  caseNumber    String         @unique
+  caseType      CaseType
+  courtName     String
+  title         String
+  description   String?
+  status        CaseStatus     @default(PENDING)
+  client        Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientId      String
+  lawyer        User?          @relation("AssignedLawyer", fields: [lawyerId], references: [id])
+  lawyerId      String?
+  hearings      Hearing[]
+  documents     Document[]
+  dateFiled     DateTime       @default(now())
+  nextHearing   DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@map("cases")
+}
+
+model Hearing {
+  id            String         @id @default(cuid())
+  case          Case           @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  caseId        String
+  date          DateTime
+  time          String?
+  purpose       String
+  notes         String?
+  nextHearingDate DateTime?
+  lawyer        User?          @relation("HearingLawyer", fields: [lawyerId], references: [id])
+  lawyerId      String?
+  createdAt     DateTime       @default(now())
+
+  @@map("hearings")
+}
+
+model Document {
+  id            String         @id @default(cuid())
+  case          Case           @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  caseId        String
+  title         String
+  fileName      String
+  fileUrl       String
+  fileType      String
+  size          Int?
+  uploadedBy    String?
+  createdAt     DateTime       @default(now())
+
+  @@map("documents")
+}
+
+model ActivityLog {
+  id            String         @id @default(cuid())
+  action        String
+  entityType    String
+  entityId      String?
+  description   String?
+  userEmail     String?
+  createdAt     DateTime       @default(now())
+
+  @@map("activity_logs")
+}
+
+// ------------------- Enums -------------------
+
+enum Role {
+  ADMIN
+  SENIOR
+  ASSOCIATE
+}
+
+enum CaseStatus {
+  PENDING
+  ONGOING
+  ADJOURNED
+  WON
+  LOST
+  CLOSED
+}
+
+enum CaseType {
+  CIVIL
+  CRIMINAL
+  FAMILY
+  PROPERTY
+  OTHER
+}
